@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 from datetime import datetime
 import os
+import os.path as osp
 import sys
 from collections import OrderedDict
 sys.path.append('../')
@@ -12,6 +13,7 @@ import torch
 from torch.autograd import Variable
 from torchvision import transforms
 import cv2
+import time
 
 
 # Custom includes
@@ -87,11 +89,11 @@ def img_transform(img, transform=None):
     sample = transform(sample)
     return sample
 
-def inference(net, img_path='', output_path='./', output_name='f', use_gpu=True):
+def inference(net, input_path, output_path, use_gpu=True):
     '''
 
     :param net:
-    :param img_path:
+    :param input_path:
     :param output_path:
     :return:
     '''
@@ -114,7 +116,7 @@ def inference(net, img_path='', output_path='./', output_name='f', use_gpu=True)
 
     # multi-scale
     scale_list = [1, 0.5, 0.75, 1.25, 1.5, 1.75]
-    img = read_img(img_path)
+    img = read_img(input_path)
     testloader_list = []
     testloader_flip_list = []
     for pv in scale_list:
@@ -176,7 +178,7 @@ def inference(net, img_path='', output_path='./', output_name='f', use_gpu=True)
         vis_res = decode_labels(results)
 
         parsing_im = Image.fromarray(vis_res[0])
-        parsing_im.save(output_path+'/{}'.format(output_name))
+        parsing_im.save(output_path)
         # cv2.imwrite(output_path+'/{}_gray.png'.format(output_name), results[0, :, :])
 
         end_time = timeit.default_timer()
@@ -185,26 +187,19 @@ def inference(net, img_path='', output_path='./', output_name='f', use_gpu=True)
 if __name__ == '__main__':
     '''argparse begin'''
     parser = argparse.ArgumentParser()
-    # parser.add_argument('--loadmodel',default=None,type=str)
-    parser.add_argument('--loadmodel', default='', type=str)
-    parser.add_argument('--img_list', default='', type=str)
-    parser.add_argument('--output_dir', default='', type=str)
-    # parser.add_argument('--output_name', default='', type=str)
+    parser.add_argument('--loadmodel', required=True, type=str)
+    parser.add_argument('--input_dir', required=True, type=str)
+    parser.add_argument('--output_dir', required=True, type=str)
     parser.add_argument('--use_gpu', default=1, type=int)
-    parser.add_argument('--data_root', default='', type=str)
     opts = parser.parse_args()
 
     net = deeplab_xception_transfer.deeplab_xception_transfer_projection_v3v5_more_savemem(n_classes=20, os=16,
                                                                                    hidden_layers=128,
                                                                                    source_classes=7,)
 
-    if not opts.loadmodel == '':
-        x = torch.load(opts.loadmodel)
-        net.load_source_model(x)
-        print('load model:', opts.loadmodel)
-    else:
-        print('no model load !!!!!!!!')
-        raise RuntimeError('No model!!!!')
+    x = torch.load(opts.loadmodel)
+    net.load_source_model(x)
+    print('load model:', opts.loadmodel)
 
     if opts.use_gpu >0 :
         net.cuda()
@@ -214,31 +209,26 @@ if __name__ == '__main__':
         raise RuntimeError('must use gpu!!!!')
     if not os.path.exists(opts.output_dir):
         os.makedirs(opts.output_dir)
-    # load img list
-    import os.path as osp
-    file = open(osp.join(opts.data_root, opts.img_list))
-    imgs = file.readlines()
-    total = len(imgs)
-    import time
+
+    if not osp.exists(opts.input_dir):
+        raise RuntimeError('input_dir must exist!!!!')
+
+    # List all .jpg files in input_dir:
+    img_list = [f for f in os.listdir(opts.input_dir) if osp.isfile(osp.join(opts.input_dir, f)) and f.endswith('.jpg')]
+
+    total = len(img_list)
     sstime = time.time()
     i = 1
     showFreq = 200
-    for img in imgs:
+    for img in img_list:
         single_ss = time.time()
-        img = img.strip('\n')
-        img_split = img.split('/')
-        img_id = img_split[-1][:-4]
-        video_id = img_split[-2]
-        vis_output_dir = os.path.join(opts.output_dir, 'train' + '_parsing_vis', video_id)
-        if not os.path.exists(vis_output_dir):
-            os.makedirs(vis_output_dir)
-        output_name = '{}_vis.png'.format(img_id)
-        if not osp.exists(osp.join(vis_output_dir, output_name)):
-            inference(net=net, img_path=osp.join(opts.data_root, img),output_path=vis_output_dir , output_name=output_name, use_gpu=use_gpu)
+        img_name = osp.splitext(img)[0]
+        input_path = osp.join(opts.input_dir, img_name)
+        output_path = osp.join(opts.output_dir, img_name)
+        inference(net=net, input_path=input_path, output_path=output_path, use_gpu=use_gpu)
         if i % showFreq == 0:
             exp_time = time.time() - sstime
             print('{}/{} Finish, total time:{}'.format(str(i), str(total), str(exp_time)))
         single_ee = time.time()
         print('total time for single image ', single_ee - single_ss)
         i = i + 1
-
