@@ -223,8 +223,8 @@ if __name__ == '__main__':
     for img in img_list:
         single_ss = time.time()
         img_name = osp.splitext(img)[0]
-        input_path = osp.join(opts.input_dir, img_name)
-        output_path = osp.join(opts.output_dir, img_name)
+        input_path = osp.join(opts.input_dir, f'{img_name}.jpg')
+        output_path = osp.join(opts.output_dir, f'{img_name}.png')
         inference(net=net, input_path=input_path, output_path=output_path, use_gpu=use_gpu)
         if i % showFreq == 0:
             exp_time = time.time() - sstime
