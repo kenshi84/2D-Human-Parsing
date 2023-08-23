@@ -28,6 +28,13 @@ label_colours = [(0,0,0)
                 , (128,0,0), (255,0,0), (0,85,0), (170,0,51), (255,85,0), (0,0,85), (0,119,221), (85,85,0), (0,85,85), (85,51,0), (52,86,128), (0,128,0)
                 , (0,0,255), (51,170,221), (0,255,255), (85,255,170), (170,255,85), (255,255,0), (255,170,0)]
 
+label_colours_palette = [0,0,0
+                , 128,0,0, 255,0,0, 0,85,0, 170,0,51, 255,85,0, 0,0,85, 0,119,221, 85,85,0, 0,85,85, 85,51,0, 52,86,128, 0,128,0
+                , 0,0,255, 51,170,221, 0,255,255, 85,255,170, 170,255,85, 255,255,0, 255,170,0]
+
+label_colours_palette += [255] * ((256-20)*3)
+label_colours_palette_img = Image.new('P', (16, 16))
+label_colours_palette_img.putpalette(label_colours_palette)
 
 def flip(x, dim):
     indices = [slice(None)] * x.dim()
@@ -178,6 +185,8 @@ def inference(net, input_path, output_path, use_gpu=True):
         vis_res = decode_labels(results)
 
         parsing_im = Image.fromarray(vis_res[0])
+        # https://stackoverflow.com/a/62899187
+        parsing_im = parsing_im.quantize(palette=label_colours_palette_img, dither=0)
         parsing_im.save(output_path)
         # cv2.imwrite(output_path+'/{}_gray.png'.format(output_name), results[0, :, :])
 
