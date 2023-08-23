@@ -184,37 +184,24 @@ def inference(net, input_path, output_path, use_gpu=True):
         end_time = timeit.default_timer()
         print('time use for image' + ' is :' + str(end_time - start_time))
 
-if __name__ == '__main__':
-    '''argparse begin'''
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--loadmodel', required=True, type=str)
-    parser.add_argument('--input_dir', required=True, type=str)
-    parser.add_argument('--output_dir', required=True, type=str)
-    parser.add_argument('--use_gpu', default=1, type=int)
-    opts = parser.parse_args()
-
+def inference_dir(loadmodel, input_dir, output_dir):
     net = deeplab_xception_transfer.deeplab_xception_transfer_projection_v3v5_more_savemem(n_classes=20, os=16,
                                                                                    hidden_layers=128,
                                                                                    source_classes=7,)
 
-    x = torch.load(opts.loadmodel)
+    x = torch.load(loadmodel)
     net.load_source_model(x)
-    print('load model:', opts.loadmodel)
+    print('load model:', loadmodel)
 
-    if opts.use_gpu >0 :
-        net.cuda()
-        use_gpu = True
-    else:
-        use_gpu = False
-        raise RuntimeError('must use gpu!!!!')
-    if not os.path.exists(opts.output_dir):
-        os.makedirs(opts.output_dir)
+    net.cuda()
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-    if not osp.exists(opts.input_dir):
+    if not osp.exists(input_dir):
         raise RuntimeError('input_dir must exist!!!!')
 
     # List all .jpg files in input_dir:
-    img_list = [f for f in os.listdir(opts.input_dir) if osp.isfile(osp.join(opts.input_dir, f)) and f.endswith('.jpg')]
+    img_list = [f for f in os.listdir(input_dir) if osp.isfile(osp.join(input_dir, f)) and f.endswith('.jpg')]
 
     total = len(img_list)
     sstime = time.time()
@@ -223,12 +210,22 @@ if __name__ == '__main__':
     for img in img_list:
         single_ss = time.time()
         img_name = osp.splitext(img)[0]
-        input_path = osp.join(opts.input_dir, f'{img_name}.jpg')
-        output_path = osp.join(opts.output_dir, f'{img_name}.png')
-        inference(net=net, input_path=input_path, output_path=output_path, use_gpu=use_gpu)
+        input_path = osp.join(input_dir, f'{img_name}.jpg')
+        output_path = osp.join(output_dir, f'{img_name}.png')
+        inference(net=net, input_path=input_path, output_path=output_path, use_gpu=True)
         if i % showFreq == 0:
             exp_time = time.time() - sstime
             print('{}/{} Finish, total time:{}'.format(str(i), str(total), str(exp_time)))
         single_ee = time.time()
         print('total time for single image ', single_ee - single_ss)
         i = i + 1
+
+if __name__ == '__main__':
+    '''argparse begin'''
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--loadmodel', required=True, type=str)
+    parser.add_argument('--input_dir', required=True, type=str)
+    parser.add_argument('--output_dir', required=True, type=str)
+    opts = parser.parse_args()
+
+    inference_dir(opts.loadmodel, opts.input_dir, opts.output_dir)
